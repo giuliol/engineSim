@@ -16,6 +16,7 @@ class Engine:
     TYPE_INLINE_3 = 11
     TYPE_INLINE_6 = 12
     TYPE_V12 = 13
+    TYPE_INLINE_4_CROSSPLANE = 14
 
     WAVEFORM_DEFAULT = 1
 
@@ -68,7 +69,8 @@ class Engine:
             self.TYPE_INLINE_5: np.array([0, 144, 288, 432, 576]),
             self.TYPE_INLINE_3: np.array([0, 240, 480]),
             self.TYPE_INLINE_6: np.array([0, 120, 240, 360, 480, 600]),
-            self.TYPE_V12: np.array([0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660])
+            self.TYPE_V12: np.array([0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660]),
+            self.TYPE_INLINE_4_CROSSPLANE: np.array([0, 270, 360, 630])
 
         }.get(my_type, "{} is not a known engine layout".format(my_type))
 
