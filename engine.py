@@ -52,8 +52,8 @@ class Engine:
     def getWaveForm(self, firing_waveform):
         return {
 
-            self.WAVEFORM_4STROKE: self.getGaussianPulse(100, 0.015, 8),
-            self.WAVEFORM_2STROKE: self.getGaussianPulse(200, 0.2, 8)
+            self.WAVEFORM_4STROKE: self.getGaussianPulse(150, 0.018, 8),
+            self.WAVEFORM_2STROKE: self.getGaussianPulse(220, 0.2, 8)
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
 
@@ -86,7 +86,7 @@ class Engine:
         nCycles = 1
         duration = 0
         convFactor = 120. / (720. * rpms)
-        punchedCard = cycle * convFactor + (120. / rpms)
+        punchedCard = np.array(())
 
         while duration < milliseconds / 1000.:
             # events = np.vstack((events, cycle + (120. / rpms)))
@@ -116,14 +116,16 @@ class Engine:
                     factor = 0.35
                 rrll = 0
 
+            ran = np.random.uniform(0.8, 1.1, 1)
             for sample in waveform:
                 if self.my_type == self.TYPE_FLAT_4:
-                    sound[initialSample + i] = sample * factor
+                    sound[initialSample + i] += sample * factor * ran
                 else:
-                    sound[initialSample + i] = sample
+                    sound[initialSample + i] += sample * ran
 
                 i += 1
-        return sound
+        trim = 13000
+        return sound[:-trim]
 
     def getGaussianPulse(self, f, noise_amplitude, noise_var):
         fs = 44100
@@ -140,10 +142,11 @@ class Engine:
                                                                                         1.0 / fs * var * noise_var)
 
         print(sound.shape)
-        echos = np.zeros([len(sound)*2])
+        echos = np.zeros([len(sound) * 2])
         print(echos.shape)
-        echosTimes = np.array([0, duration/5, 3.2 * duration/5, 2.5*duration/5])
-        echosFactors = [1, 0.2, 0.1, 0.15]
+        echosTimes = np.array(
+            [0, duration / 5.5637, 3.2 * duration / 5.5847, 2.5 * duration / 5.412, 5 * duration / 5.412])
+        echosFactors = [1, 0.2, 0.1, 0.15, 0.07]
         echosIndexes = echosTimes * fs
         i = 0
         print(echosTimes)
@@ -155,16 +158,15 @@ class Engine:
             echos[int(echosIndexes[i])] = factor
             i += 1
 
-
         print(len(echos))
         print(len(sound))
 
         print(echos[echos != 0])
         echoed = np.convolve(sound, echos)
-        plt.plot(echos, 'g')
-        plt.plot(sound, 'r')
-        plt.plot(echoed, 'b')
-        plt.show()
+        # plt.plot(echos, 'g')
+        # plt.plot(sound, 'r')
+        # plt.plot(echoed, 'b')
+        # plt.show()
         return echoed
 
     def gaussian(self, x, mu, sig):
