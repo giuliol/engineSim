@@ -11,6 +11,11 @@ class Engine:
     # TYPE_V8_CROSSPLANE = 6
     TYPE_V8_FLATPLANE = 7
     TYPE_FLAT_4 = 8
+    TYPE_RS_250 = 9
+    TYPE_INLINE_5 = 10
+    TYPE_INLINE_3 = 11
+    TYPE_INLINE_6 = 12
+    TYPE_V12 = 13
 
     WAVEFORM_DEFAULT = 1
 
@@ -57,13 +62,19 @@ class Engine:
             self.TYPE_V60_TWIN: np.array([0, 420]),
             self.TYPE_INLINE_4: np.array([0, 180, 360, 540]),
             self.TYPE_FLAT_4: np.array([0, 180, 360, 540]),
-            self.TYPE_V8_FLATPLANE: np.array([0, 90, 180, 270, 360, 450, 540, 630]) # not sure
+            self.TYPE_V8_FLATPLANE: np.array([0, 90, 180, 270, 360, 450, 540, 630]),  # not sure
             # self.TYPE_V8_CROSSPLANE: np.array([0, 180, 360, 540]),
+            self.TYPE_RS_250: np.array([0, 90, 360, 450]),
+            self.TYPE_INLINE_5: np.array([0, 144, 288, 432, 576]),
+            self.TYPE_INLINE_3: np.array([0, 240, 480]),
+            self.TYPE_INLINE_6: np.array([0, 120, 240, 360, 480, 600]),
+            self.TYPE_V12: np.array([0, 60, 120, 180, 240, 300, 360, 420, 480, 540, 600, 660])
 
         }.get(my_type, "{} is not a known engine layout".format(my_type))
 
-    # punchedCard is a vector of NC * rpms / 2 / 60 * milliseconds/1000 firing events.
-    # Each is a time coordinate in ms
+        # punchedCard is a vector of NC * rpms / 2 / 60 * milliseconds/1000 firing events.
+        # Each is a time coordinate in ms
+
     def spin(self, cycle, rpms, milliseconds):
         nCycles = 1
         duration = 0
@@ -100,7 +111,7 @@ class Engine:
 
             for sample in waveform:
                 if self.my_type == self.TYPE_FLAT_4:
-                    sound[initialSample + i] = sample*factor
+                    sound[initialSample + i] = sample * factor
                 else:
                     sound[initialSample + i] = sample
 
