@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sp
+import matplotlib.pyplot as plt
 
 
 class Engine:
@@ -17,8 +18,10 @@ class Engine:
     TYPE_INLINE_6 = 12
     TYPE_V12 = 13
     TYPE_INLINE_4_CROSSPLANE = 14
+    TYPE_2STROKE_SINGLE = 15
 
-    WAVEFORM_DEFAULT = 1
+    WAVEFORM_4STROKE = 1
+    WAVEFORM_2STROKE = 2
 
     my_type = -1
 
@@ -49,7 +52,8 @@ class Engine:
     def getWaveForm(self, firing_waveform):
         return {
 
-            self.WAVEFORM_DEFAULT: self.getGaussianPulse()
+            self.WAVEFORM_4STROKE: self.getGaussianPulse(100, 0.015, 8),
+            self.WAVEFORM_2STROKE: self.getGaussianPulse(200, 0.2, 8)
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
 
@@ -58,6 +62,7 @@ class Engine:
     def buildCycle(self, my_type):
         return {
             self.TYPE_SINGLE: np.array([0]),
+            self.TYPE_2STROKE_SINGLE: np.array([0, 360]),
             self.TYPE_PARALLEL_TWIN: np.array([0, 180]),
             self.TYPE_V90_TWIN: np.array([0, 270]),
             self.TYPE_V60_TWIN: np.array([0, 420]),
@@ -120,20 +125,47 @@ class Engine:
                 i += 1
         return sound
 
-    def getGaussianPulse(self):
+    def getGaussianPulse(self, f, noise_amplitude, noise_var):
         fs = 44100
-        f = 100
-        duration = 0.03  # secs
+        # f = 200
+        duration = 0.08  # secs
         t = np.arange(44100 * duration) / fs
         var = 80
         sin1 = np.sin(2 * np.pi * f * t)
-        top = 0.2
-        ran = np.random.uniform(0 - top, top, int(sp.floor(44100 * duration)))
+        # top = 0.18
+        ran = np.random.uniform(0 - noise_amplitude, noise_amplitude, int(sp.floor(44100 * duration)))
 
         src = sin1  # + ran
         sound = src * self.gaussian(t, 0.05 / fs, 1.0 / fs * var) + ran * self.gaussian(t, 0.05 / fs,
-                                                                                        1.0 / fs * var * 3)
-        return sound
+                                                                                        1.0 / fs * var * noise_var)
+
+        print(sound.shape)
+        echos = np.zeros([len(sound)*2])
+        print(echos.shape)
+        echosTimes = np.array([0, duration/5, 3.2 * duration/5, 2.5*duration/5])
+        echosFactors = [1, 0.2, 0.1, 0.15]
+        echosIndexes = echosTimes * fs
+        i = 0
+        print(echosTimes)
+        print(echosIndexes)
+        for factor in echosFactors:
+            # print(echosIndexes[i])
+            print(i)
+            print(type(echos[int(echosIndexes[i])]))
+            echos[int(echosIndexes[i])] = factor
+            i += 1
+
+
+        print(len(echos))
+        print(len(sound))
+
+        print(echos[echos != 0])
+        echoed = np.convolve(sound, echos)
+        plt.plot(echos, 'g')
+        plt.plot(sound, 'r')
+        plt.plot(echoed, 'b')
+        plt.show()
+        return echoed
 
     def gaussian(self, x, mu, sig):
         return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
