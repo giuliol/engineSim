@@ -5,15 +5,22 @@ import sounddevice as sd
 start = 500
 short = 500
 
-eng = Engine(Engine.TYPE_RS_250, Engine.WAVEFORM_2STROKE)
+eng = Engine(Engine.TYPE_FLAT_4, Engine.WAVEFORM_4STROKE)
 
-sound = eng.roar(200, 4000)
-sound = np.append(sound, eng.roar(900, 2000))
-sound = np.append(sound, eng.roar(1000, 1000))
-sound = np.append(sound, eng.roar(2000, 1000))
-sound = np.append(sound, eng.roar(3000, 1000))
-sound = np.append(sound, eng.roar(4000, 2000))
-sound = np.append(sound, eng.roar(1000, 4000))
+sound = eng.roar(200, 2000)
+# sound = np.append(sound, eng.roar(900, 2000))
+sound = np.append(sound, eng.roar(850, 4000))
+# sound = np.append(sound, eng.roar(2000, 1000))
+sound = np.append(sound, eng.roar(2500, 4000))
+sound = np.append(sound, eng.roar(5000, 4000))
+
+# sound = np.append(sound, eng.roar(4000, 1000))
+# sound = np.append(sound, eng.roar(6000, 1000))
+# sound = np.append(sound, eng.roar(8000, 1000))
+# sound = np.append(sound, eng.roar(10000, 1000))
+# sound = np.append(sound, eng.roar(12000, 1000))
+
+sound = np.append(sound, eng.roar(850, 4000))
 
 import matplotlib.pyplot as plt
 

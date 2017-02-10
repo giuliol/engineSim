@@ -52,8 +52,8 @@ class Engine:
     def getWaveForm(self, firing_waveform):
         return {
 
-            self.WAVEFORM_4STROKE: self.getGaussianPulse(150, 0.018, 8),
-            self.WAVEFORM_2STROKE: self.getGaussianPulse(220, 0.2, 8)
+            self.WAVEFORM_4STROKE: 0.7*self.getGaussianPulse(80, 0.008, 600, 8) + 0.15*self.getGaussianPulse(160, 0.0, 500, 5) + 0.05*self.getGaussianPulse(240, 0.0, 300, 5),
+            self.WAVEFORM_2STROKE: 0.3*self.getGaussianPulse(80, 0.018, 300, 8) + self.getGaussianPulse(450, 0.18, 150, 5)
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
 
@@ -116,7 +116,7 @@ class Engine:
                     factor = 0.35
                 rrll = 0
 
-            ran = np.random.uniform(0.8, 1.1, 1)
+            ran = np.random.uniform(0.6, 1.3, 1)
             for sample in waveform:
                 if self.my_type == self.TYPE_FLAT_4:
                     sound[initialSample + i] += sample * factor * ran
@@ -124,29 +124,28 @@ class Engine:
                     sound[initialSample + i] += sample * ran
 
                 i += 1
-        trim = 13000
+        trim = 15000
         return sound[:-trim]
 
-    def getGaussianPulse(self, f, noise_amplitude, noise_var):
+    def getGaussianPulse(self, f, noise_amplitude, gaussian_var, noise_var):
         fs = 44100
         # f = 200
         duration = 0.08  # secs
         t = np.arange(44100 * duration) / fs
-        var = 80
         sin1 = np.sin(2 * np.pi * f * t)
         # top = 0.18
         ran = np.random.uniform(0 - noise_amplitude, noise_amplitude, int(sp.floor(44100 * duration)))
 
         src = sin1  # + ran
-        sound = src * self.gaussian(t, 0.05 / fs, 1.0 / fs * var) + ran * self.gaussian(t, 0.05 / fs,
-                                                                                        1.0 / fs * var * noise_var)
+        sound = src * self.gaussian(t, 0.05 / fs, 1.0 / fs * gaussian_var) + ran * self.gaussian(t, 0.05 / fs,
+                                                                                        1.0 / fs * gaussian_var * noise_var)
 
         print(sound.shape)
         echos = np.zeros([len(sound) * 2])
         print(echos.shape)
         echosTimes = np.array(
             [0, duration / 5.5637, 3.2 * duration / 5.5847, 2.5 * duration / 5.412, 5 * duration / 5.412])
-        echosFactors = [1, 0.2, 0.1, 0.15, 0.07]
+        echosFactors = [1, 0.3, 0.15, 0.1, 0.1]
         echosIndexes = echosTimes * fs
         i = 0
         print(echosTimes)
