@@ -10,6 +10,8 @@ class Engine:
     TYPE_INLINE_4 = 5
     # TYPE_V8_CROSSPLANE = 6
     TYPE_V8_FLATPLANE = 7
+    TYPE_FLAT_4 = 8
+
     WAVEFORM_DEFAULT = 1
 
     my_type = -1
@@ -54,6 +56,7 @@ class Engine:
             self.TYPE_V90_TWIN: np.array([0, 270]),
             self.TYPE_V60_TWIN: np.array([0, 420]),
             self.TYPE_INLINE_4: np.array([0, 180, 360, 540]),
+            self.TYPE_FLAT_4: np.array([0, 180, 360, 540]),
             self.TYPE_V8_FLATPLANE: np.array([0, 90, 180, 270, 360, 450, 540, 630]) # not sure
             # self.TYPE_V8_CROSSPLANE: np.array([0, 180, 360, 540]),
 
@@ -81,11 +84,26 @@ class Engine:
         pulseLength = len(waveform) / FS
         soundSamples = int(sp.ceil(punchedCard[-1] * FS + len(waveform)))
         sound = np.zeros([soundSamples, 1])
+
+        rrll = 0
+        factor = 1
         for punch in punchedCard:
             initialSample = int(punch * FS)
             i = 0
+            rrll += 1
+            if rrll == 2:
+                if factor == 0.35:
+                    factor = 1.0
+                else:
+                    factor = 0.35
+                rrll = 0
+
             for sample in waveform:
-                sound[initialSample + i] = sample
+                if self.my_type == self.TYPE_FLAT_4:
+                    sound[initialSample + i] = sample*factor
+                else:
+                    sound[initialSample + i] = sample
+
                 i += 1
         return sound
 
