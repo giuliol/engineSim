@@ -128,13 +128,14 @@ class Engine:
         ran = 1;
         nCycles = 1
 
-        while duration < top / 1000.:
+        while duration < REV_DURATION / 1000.:
             convFactor = 120. / (720. * rpms)
             ran = 0.95*ran + 0.05*np.random.uniform(0.9, 1.1, 1)
             punchedCard = np.append(punchedCard, cycle * convFactor + (120. / (rpms * ran)) * nCycles)
             nCycles += 1
             duration += 120. / rpms
-            rpms = min(1.012*rpms, top)
+            print( 120. / rpms)
+            rpms = min(1.03*rpms, top)
             print(rpms)
 
         return punchedCard
@@ -144,7 +145,7 @@ class Engine:
     def render(self, punchedCard, FS, waveform):
         pulseLength = len(waveform) / FS
         soundSamples = int(sp.ceil(punchedCard[-1] * FS + len(waveform)))
-        sound = np.zeros([soundSamples*2, 1])
+        sound = np.zeros([int(soundSamples*1.2), 1])
 
         rrll = 0
         factor = 1
