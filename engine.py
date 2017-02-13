@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sp
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 class Engine:
@@ -19,7 +19,8 @@ class Engine:
     TYPE_V12 = 13
     TYPE_INLINE_4_CROSSPLANE = 14
     TYPE_2STROKE_SINGLE = 15
-
+    TYPE_BIG_BANG_4 = 16
+    TYPE_V4_VFR = 17
     WAVEFORM_4STROKE = 1
     WAVEFORM_2STROKE = 2
 
@@ -52,7 +53,7 @@ class Engine:
     def getWaveForm(self, firing_waveform):
         return {
 
-            self.WAVEFORM_4STROKE: 0.7*self.getGaussianPulse(80, 0.008, 600, 8) + 0.15*self.getGaussianPulse(160, 0.0, 500, 5) + 0.05*self.getGaussianPulse(240, 0.0, 300, 5),
+            self.WAVEFORM_4STROKE: 0.7*self.getGaussianPulse(80, 0.008, 600, 8) + 0.7*self.getGaussianPulse(250, 0.05, 100, 5) + 0.05*self.getGaussianPulse(560, 0.0, 350, 5),
             self.WAVEFORM_2STROKE: 0.3*self.getGaussianPulse(80, 0.018, 300, 8) + self.getGaussianPulse(450, 0.18, 150, 5)
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
@@ -67,6 +68,8 @@ class Engine:
             self.TYPE_V90_TWIN: np.array([0, 270]),
             self.TYPE_V60_TWIN: np.array([0, 420]),
             self.TYPE_INLINE_4: np.array([0, 180, 360, 540]),
+            self.TYPE_BIG_BANG_4: np.array([0, 90, 180, 630]),
+            self.TYPE_V4_VFR: np.array([0, 90, 180, 630]),
             self.TYPE_FLAT_4: np.array([0, 180, 360, 540]),
             self.TYPE_V8_FLATPLANE: np.array([0, 90, 180, 270, 360, 450, 540, 630]),  # not sure
             # self.TYPE_V8_CROSSPLANE: np.array([0, 180, 360, 540]),
@@ -105,6 +108,7 @@ class Engine:
 
         rrll = 0
         factor = 1
+        ran = 1
         for punch in punchedCard:
             initialSample = int(punch * FS)
             i = 0
@@ -116,7 +120,8 @@ class Engine:
                     factor = 0.35
                 rrll = 0
 
-            ran = np.random.uniform(0.6, 1.3, 1)
+            ran = 0.5*ran + 0.5*np.random.uniform(0.7, 1.3, 1)
+
             for sample in waveform:
                 if self.my_type == self.TYPE_FLAT_4:
                     sound[initialSample + i] += sample * factor * ran
@@ -161,12 +166,67 @@ class Engine:
         print(len(sound))
 
         print(echos[echos != 0])
-        echoed = np.convolve(sound, echos)
+        # echoed = np.convolve(sound, echos)
         # plt.plot(echos, 'g')
         # plt.plot(sound, 'r')
         # plt.plot(echoed, 'b')
         # plt.show()
-        return echoed
+        return np.convolve(sound, echos)
 
     def gaussian(self, x, mu, sig):
         return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
+
+    def smooth(x, window_len=11, window='hanning'):
+        """smooth the data using a window with requested size.
+
+        This method is based on the convolution of a scaled window with the signal.
+        The signal is prepared by introducing reflected copies of the signal
+        (with the window size) in both ends so that transient parts are minimized
+        in the begining and end part of the output signal.
+
+        input:
+            x: the input signal
+            window_len: the dimension of the smoothing window; should be an odd integer
+            window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+                flat window will produce a moving average smoothing.
+
+        output:
+            the smoothed signal
+
+        example:
+
+        t=linspace(-2,2,0.1)
+        x=sin(t)+randn(len(t))*0.1
+        y=smooth(x)
+
+        see also:
+
+        numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+        scipy.signal.lfilter
+
+        TODO: the window parameter could be the window itself if an array instead of a string
+        NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+        """
+
+        if x.ndim != 1:
+            raise ValueError, "smooth only accepts 1 dimension arrays."
+
+        if x.size < window_len:
+            raise ValueError, "Input vector needs to be bigger than window size."
+
+        if window_len < 3:
+            return x
+
+        if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+            raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+
+        s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
+        # print(len(s))
+        if window == 'flat':  # moving average
+            w = np.ones(window_len, 'd')
+        else:
+            w = eval('numpy.' + window + '(window_len)')
+
+        y = np.convolve(w / w.sum(), s, mode='valid')
+        return y
+
