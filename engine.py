@@ -26,6 +26,9 @@ class Engine:
 
     my_type = -1
 
+    REV_DURATION = 3000
+    REVS_IDLE = 850
+
     FS = 44100
 
     def __init__(self, engine_type, firing_waveform):
@@ -35,6 +38,21 @@ class Engine:
     def sayHi(self):
         print("hi! I'm an engine!")
 
+
+    def rev(self, top):
+        # cycle is a vector of NC floats, each in [0 ,720]
+        # each float is a firing event, NC = number of cylinders
+        cycle = self.buildCycle(self.my_type)
+
+        # punchedCard is a vector of NC * rpms /60 * milliseconds/1000 firing events.
+        # Each is a time coordinate in ms
+        punchedCard = self.spin(cycle, top, self.REV_DURATION)
+
+        # sound is a vector containing sound samples (in [-1,1])
+        sound = self.render(punchedCard, self.FS, self.waveform)
+
+        return sound
+
     def roar(self, rpms, milliseconds):
 
         # cycle is a vector of NC floats, each in [0 ,720]
@@ -43,7 +61,7 @@ class Engine:
 
         # punchedCard is a vector of NC * rpms /60 * milliseconds/1000 firing events.
         # Each is a time coordinate in ms
-        punchedCard = self.spin(cycle, rpms, milliseconds)
+        punchedCard = self.steady(cycle, rpms, milliseconds)
 
         # sound is a vector containing sound samples (in [-1,1])
         sound = self.render(punchedCard, self.FS, self.waveform)
@@ -85,17 +103,39 @@ class Engine:
         # punchedCard is a vector of NC * rpms / 2 / 60 * milliseconds/1000 firing events.
         # Each is a time coordinate in ms
 
-    def spin(self, cycle, rpms, milliseconds):
+    def steady(self, cycle, rpms, milliseconds):
         nCycles = 1
         duration = 0
         convFactor = 120. / (720. * rpms)
         punchedCard = np.array(())
 
+        ran = 1;
         while duration < milliseconds / 1000.:
             # events = np.vstack((events, cycle + (120. / rpms)))
-            punchedCard = np.append(punchedCard, cycle * convFactor + (120. / rpms) * nCycles)
+            punchedCard = np.append(punchedCard, cycle * convFactor + (120. / (rpms * ran)) * nCycles)
+            ran = 0.95*ran + 0.05*np.random.uniform(0.9, 1.1, 1)
+
             nCycles += 1
             duration += 120. / rpms
+
+        return punchedCard
+
+    def spin(self, cycle, top, REV_DURATION):
+
+        duration = 0
+        punchedCard = np.array(())
+        rpms = self.REVS_IDLE
+        ran = 1;
+        nCycles = 1
+
+        while duration < top / 1000.:
+            convFactor = 120. / (720. * rpms)
+            ran = 0.95*ran + 0.05*np.random.uniform(0.9, 1.1, 1)
+            punchedCard = np.append(punchedCard, cycle * convFactor + (120. / (rpms * ran)) * nCycles)
+            nCycles += 1
+            duration += 120. / rpms
+            rpms = min(1.012*rpms, top)
+            print(rpms)
 
         return punchedCard
 
@@ -104,7 +144,7 @@ class Engine:
     def render(self, punchedCard, FS, waveform):
         pulseLength = len(waveform) / FS
         soundSamples = int(sp.ceil(punchedCard[-1] * FS + len(waveform)))
-        sound = np.zeros([soundSamples, 1])
+        sound = np.zeros([soundSamples*2, 1])
 
         rrll = 0
         factor = 1
@@ -127,7 +167,7 @@ class Engine:
                     sound[initialSample + i] += sample * factor * ran
                 else:
                     sound[initialSample + i] += sample * ran
-
+                sound[initialSample + 1] = max(min(sound[initialSample + 1], 2), -2)
                 i += 1
         trim = 15000
         return sound[:-trim]
@@ -209,16 +249,16 @@ class Engine:
         """
 
         if x.ndim != 1:
-            raise ValueError, "smooth only accepts 1 dimension arrays."
+            raise ValueError("smooth only accepts 1 dimension arrays.")
 
         if x.size < window_len:
-            raise ValueError, "Input vector needs to be bigger than window size."
+            raise ValueError("Input vector needs to be bigger than window size.")
 
         if window_len < 3:
             return x
 
         if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-            raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+            raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
 
         s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
         # print(len(s))
@@ -229,4 +269,6 @@ class Engine:
 
         y = np.convolve(w / w.sum(), s, mode='valid')
         return y
+
+
 
