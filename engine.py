@@ -1,5 +1,7 @@
 import numpy as np
 import scipy as sp
+
+
 # import matplotlib.pyplot as plt
 
 
@@ -26,18 +28,17 @@ class Engine:
 
     my_type = -1
 
-    REV_DURATION = 3000
-    REVS_IDLE = 850
+    REV_DURATION = 10000
+    REVS_IDLE = 150
 
     FS = 44100
 
     def __init__(self, engine_type, firing_waveform):
         self.my_type = engine_type
-        self.waveform = self.getWaveForm(firing_waveform)
+        self.waveform = self.getWaveForm(firing_waveform, self.FS) - np.mean(self.getWaveForm(firing_waveform, self.FS))
 
     def sayHi(self):
         print("hi! I'm an engine!")
-
 
     def rev(self, top):
         # cycle is a vector of NC floats, each in [0 ,720]
@@ -49,8 +50,12 @@ class Engine:
         punchedCard = self.spin(cycle, top, self.REV_DURATION)
 
         # sound is a vector containing sound samples (in [-1,1])
+        import matplotlib.pyplot as plt
+        # plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
+        # plt.show()
         sound = self.render(punchedCard, self.FS, self.waveform)
-
+        # plt.plot(sound)
+        # plt.show()
         return sound
 
     def roar(self, rpms, milliseconds):
@@ -68,11 +73,17 @@ class Engine:
 
         return sound
 
-    def getWaveForm(self, firing_waveform):
+    def getWaveForm(self, firing_waveform, fs):
         return {
 
-            self.WAVEFORM_4STROKE: 0.7*self.getGaussianPulse(80, 0.008, 600, 8) + 0.7*self.getGaussianPulse(250, 0.05, 100, 5) + 0.05*self.getGaussianPulse(560, 0.0, 350, 5),
-            self.WAVEFORM_2STROKE: 0.3*self.getGaussianPulse(80, 0.018, 300, 8) + self.getGaussianPulse(450, 0.18, 150, 5)
+            self.WAVEFORM_4STROKE:
+                0.85 * self.getGaussianPulse(80, fs, 0.008, 600, 8) +
+                0.05 * self.getGaussianPulse(250, fs, 0.05, 200, 5) +
+                0.05 * self.getGaussianPulse(560, fs, 0.0, 350, 5),
+
+            self.WAVEFORM_2STROKE:
+                0.3 * self.getGaussianPulse(80, fs, 0.018, 300, 8) +
+                self.getGaussianPulse(450, fs, 0.18, 150, 5)
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
 
@@ -82,7 +93,7 @@ class Engine:
         return {
             self.TYPE_SINGLE: np.array([0]),
             self.TYPE_2STROKE_SINGLE: np.array([0, 360]),
-            self.TYPE_PARALLEL_TWIN: np.array([0, 180]),
+            self.TYPE_PARALLEL_TWIN: np.array([0, 360]),
             self.TYPE_V90_TWIN: np.array([0, 270]),
             self.TYPE_V60_TWIN: np.array([0, 420]),
             self.TYPE_INLINE_4: np.array([0, 180, 360, 540]),
@@ -104,39 +115,43 @@ class Engine:
         # Each is a time coordinate in ms
 
     def steady(self, cycle, rpms, milliseconds):
-        nCycles = 1
-        duration = 0
-        convFactor = 120. / (720. * rpms)
         punchedCard = np.array(())
-
+        punchedCard = np.append(punchedCard, 0)
         ran = 1;
-        while duration < milliseconds / 1000.:
-            # events = np.vstack((events, cycle + (120. / rpms)))
-            punchedCard = np.append(punchedCard, cycle * convFactor + (120. / (rpms * ran)) * nCycles)
-            ran = 0.95*ran + 0.05*np.random.uniform(0.9, 1.1, 1)
-
+        nCycles = 0
+        lastOne = 0
+        print("cycle {}".format(cycle))
+        while punchedCard[-1] < milliseconds / 1000.:
+            convFactor = 120. / (720. * rpms)
+            ran = 0.9 * ran + 0.1 * np.random.uniform(0.9, 1.1, 1)
+            punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
+            lastOne = lastOne + 60. / rpms;
             nCycles += 1
-            duration += 120. / rpms
 
         return punchedCard
 
     def spin(self, cycle, top, REV_DURATION):
 
-        duration = 0
         punchedCard = np.array(())
+        punchedCard = np.append(punchedCard, 0)
         rpms = self.REVS_IDLE
-        ran = 1;
-        nCycles = 1
-
-        while duration < REV_DURATION / 1000.:
+        nCycles = 0
+        lastOne = 0
+        ran = 1
+        while punchedCard[-1] < REV_DURATION / 1000.:
             convFactor = 120. / (720. * rpms)
-            ran = 0.95*ran + 0.05*np.random.uniform(0.9, 1.1, 1)
-            punchedCard = np.append(punchedCard, cycle * convFactor + (120. / (rpms * ran)) * nCycles)
+            ran = 0.9 * ran + 0.1 * np.random.uniform(0.9, 1.1, 1)
+            punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
+            lastOne = lastOne + 120. / rpms;
             nCycles += 1
-            duration += 120. / rpms
-            print( 120. / rpms)
-            rpms = min(1.03*rpms, top)
-            print(rpms)
+            if punchedCard[-1] < 1. / 2. * REV_DURATION / 1000.:
+                rpms = min(1.04 * rpms, top) * ran
+            else:
+                rpms = max(0.89 * rpms, self.REVS_IDLE) * ran
+
+        from matplotlib import pyplot as plt
+        plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
+        plt.show()
 
         return punchedCard
 
@@ -145,7 +160,7 @@ class Engine:
     def render(self, punchedCard, FS, waveform):
         pulseLength = len(waveform) / FS
         soundSamples = int(sp.ceil(punchedCard[-1] * FS + len(waveform)))
-        sound = np.zeros([int(soundSamples*1.2), 1])
+        sound = np.zeros([int(soundSamples * 1.2), 1])
 
         rrll = 0
         factor = 1
@@ -155,26 +170,27 @@ class Engine:
             i = 0
             rrll += 1
             if rrll == 2:
-                if factor == 0.35:
-                    factor = 1.0
+                if factor == 1.1:
+                    factor = 0.6
                 else:
-                    factor = 0.35
+                    factor = 1.1
                 rrll = 0
 
-            ran = 0.5*ran + 0.5*np.random.uniform(0.7, 1.3, 1)
+            ran = 0.5 * ran + 0.5 * np.random.uniform(0.8, 1.2, 1)
+            # ran =1
+            shape = sound[initialSample:initialSample + len(waveform)].shape
+            if self.my_type == self.TYPE_FLAT_4:
+                sound[initialSample:initialSample + len(waveform)] += np.reshape(waveform * factor * ran, shape)
+            else:
+                sound[initialSample:initialSample + len(waveform)] += np.reshape(waveform * ran, shape)
 
-            for sample in waveform:
-                if self.my_type == self.TYPE_FLAT_4:
-                    sound[initialSample + i] += sample * factor * ran
-                else:
-                    sound[initialSample + i] += sample * ran
-                sound[initialSample + 1] = max(min(sound[initialSample + 1], 2), -2)
-                i += 1
         trim = 15000
+        from matplotlib import pyplot as plt
+        plt.plot(sound)
+        plt.show()
         return sound[:-trim]
 
-    def getGaussianPulse(self, f, noise_amplitude, gaussian_var, noise_var):
-        fs = 44100
+    def getGaussianPulse(self, f, fs, noise_amplitude, gaussian_var, noise_var):
         # f = 200
         duration = 0.08  # secs
         t = np.arange(44100 * duration) / fs
@@ -184,7 +200,7 @@ class Engine:
 
         src = sin1  # + ran
         sound = src * self.gaussian(t, 0.05 / fs, 1.0 / fs * gaussian_var) + ran * self.gaussian(t, 0.05 / fs,
-                                                                                        1.0 / fs * gaussian_var * noise_var)
+                                                                                                 1.0 / fs * gaussian_var * noise_var)
 
         print(sound.shape)
         echos = np.zeros([len(sound) * 2])
@@ -270,6 +286,3 @@ class Engine:
 
         y = np.convolve(w / w.sum(), s, mode='valid')
         return y
-
-
-
