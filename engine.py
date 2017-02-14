@@ -29,7 +29,7 @@ class Engine:
     my_type = -1
 
     REV_DURATION = 10000
-    REVS_IDLE = 150
+    REVS_IDLE = 900
 
     FS = 44100
 
@@ -144,14 +144,17 @@ class Engine:
             punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
             lastOne = lastOne + 120. / rpms;
             nCycles += 1
-            if punchedCard[-1] < 1. / 2. * REV_DURATION / 1000.:
-                rpms = min(1.04 * rpms, top) * ran
+            if punchedCard[-1] < 2. / 3. * REV_DURATION / 1000. and punchedCard[-1] > 1. / 3. * REV_DURATION / 1000.:
+                rpms = min(1.09 * rpms, top) * ran
             else:
-                rpms = max(0.89 * rpms, self.REVS_IDLE) * ran
+                if self.my_type == self.TYPE_2STROKE_SINGLE or self.my_type == self.TYPE_RS_250:
+                    rpms = max(0.96 * rpms, self.REVS_IDLE) * ran
+                else:
+                    rpms = max(0.87 * rpms, self.REVS_IDLE) * ran
 
-        from matplotlib import pyplot as plt
-        plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
-        plt.show()
+        # from matplotlib import pyplot as plt
+        # plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
+        # plt.show()
 
         return punchedCard
 
@@ -185,9 +188,9 @@ class Engine:
                 sound[initialSample:initialSample + len(waveform)] += np.reshape(waveform * ran, shape)
 
         trim = 15000
-        from matplotlib import pyplot as plt
-        plt.plot(sound)
-        plt.show()
+        # from matplotlib import pyplot as plt
+        # plt.plot(sound)
+        # plt.show()
         return sound[:-trim]
 
     def getGaussianPulse(self, f, fs, noise_amplitude, gaussian_var, noise_var):

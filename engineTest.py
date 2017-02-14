@@ -5,7 +5,7 @@ import sounddevice as sd
 start = 500
 short = 500
 
-eng = Engine(Engine.TYPE_INLINE_4_CROSSPLANE, Engine.WAVEFORM_4STROKE)
+eng = Engine(Engine.TYPE_RS_250, Engine.WAVEFORM_2STROKE)
 
 # sound = eng.roar(950, 6000)
 sound = eng.rev(6000);
