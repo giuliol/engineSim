@@ -29,13 +29,16 @@ class Engine:
     my_type = -1
 
     REV_DURATION = 10000
-    REVS_IDLE = 900
+    REVS_IDLE = 1000
 
     FS = 44100
 
     def __init__(self, engine_type, firing_waveform):
         self.my_type = engine_type
         self.waveform = self.getWaveForm(firing_waveform, self.FS) - np.mean(self.getWaveForm(firing_waveform, self.FS))
+        # from matplotlib import pyplot as plt
+        # plt.plot(np.arange(len(self.waveform))/self.FS,self.waveform)
+        # plt.show()
 
     def sayHi(self):
         print("hi! I'm an engine!")
@@ -77,8 +80,8 @@ class Engine:
         return {
 
             self.WAVEFORM_4STROKE:
-                0.85 * self.getGaussianPulse(80, fs, 0.008, 600, 8) +
-                0.05 * self.getGaussianPulse(250, fs, 0.05, 200, 5) +
+                0.73 * self.getGaussianPulse(80, fs, 0.008, 600, 2) +
+                0.18 * self.getGaussianPulse(250, fs, 0.03, 200, 5) +
                 0.05 * self.getGaussianPulse(560, fs, 0.0, 350, 5),
 
             self.WAVEFORM_2STROKE:
@@ -142,9 +145,9 @@ class Engine:
             convFactor = 120. / (720. * rpms)
             ran = 0.9 * ran + 0.1 * np.random.uniform(0.9, 1.1, 1)
             punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
-            lastOne = lastOne + 120. / rpms;
+            lastOne += 120. / rpms
             nCycles += 1
-            if punchedCard[-1] < 2. / 3. * REV_DURATION / 1000. and punchedCard[-1] > 1. / 3. * REV_DURATION / 1000.:
+            if 2. / 3. * REV_DURATION / 1000. > punchedCard[-1] > 1. / 3. * REV_DURATION / 1000.:
                 rpms = min(1.09 * rpms, top) * ran
             else:
                 if self.my_type == self.TYPE_2STROKE_SINGLE or self.my_type == self.TYPE_RS_250:
@@ -222,16 +225,17 @@ class Engine:
             echos[int(echosIndexes[i])] = factor
             i += 1
 
-        print(len(echos))
-        print(len(sound))
-
-        print(echos[echos != 0])
+        # print(len(echos))
+        # print(len(sound))
+        #
+        # print(echos[echos != 0])
         # echoed = np.convolve(sound, echos)
         # plt.plot(echos, 'g')
         # plt.plot(sound, 'r')
         # plt.plot(echoed, 'b')
         # plt.show()
         return np.convolve(sound, echos)
+        # return sound
 
     def gaussian(self, x, mu, sig):
         return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
