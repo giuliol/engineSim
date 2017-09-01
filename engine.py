@@ -2,8 +2,7 @@ import numpy as np
 import scipy as sp
 
 
-# import matplotlib.pyplot as plt
-
+# import matdplotlib.pyplot as plt
 
 class Engine:
     TYPE_SINGLE = 1
@@ -11,7 +10,7 @@ class Engine:
     TYPE_V90_TWIN = 3
     TYPE_V60_TWIN = 4
     TYPE_INLINE_4 = 5
-    # TYPE_V8_CROSSPLANE = 6
+    TYPE_V8_CROSSPLANE = 6
     TYPE_V8_FLATPLANE = 7
     TYPE_FLAT_4 = 8
     TYPE_RS_250 = 9
@@ -103,7 +102,7 @@ class Engine:
             self.TYPE_V4_VFR: np.array([0, 90, 180, 630]),
             self.TYPE_FLAT_4: np.array([0, 180, 405, 585]),
             self.TYPE_V8_FLATPLANE: np.array([0, 90, 180, 270, 360, 450, 540, 630]),  # not sure
-            # self.TYPE_V8_CROSSPLANE: np.array([0, 180, 360, 540]),
+            self.TYPE_V8_CROSSPLANE: np.array([0, 90, 270, 360, 360, 450, 630, 720]),
             self.TYPE_RS_250: np.array([0, 90, 360, 450]),
             self.TYPE_INLINE_5: np.array([0, 144, 288, 432, 576]),
             self.TYPE_INLINE_3: np.array([0, 240, 480]),
