@@ -22,19 +22,25 @@ class Engine:
     TYPE_2STROKE_SINGLE = 15
     TYPE_BIG_BANG_4 = 16
     TYPE_V4_VFR = 17
+
     WAVEFORM_4STROKE = 1
     WAVEFORM_2STROKE = 2
 
-    my_type = -1
+    my_arch = -1
+    twoStroke = False
 
-    REV_DURATION = 10000
+    REV_DURATION = 12000
     REVS_IDLE = 1000
 
     FS = 44100
 
     def __init__(self, engine_type, firing_waveform):
-        self.my_type = engine_type
+        self.my_arch = engine_type
         self.waveform = self.getWaveForm(firing_waveform, self.FS) - np.mean(self.getWaveForm(firing_waveform, self.FS))
+        if firing_waveform == self.WAVEFORM_2STROKE:
+            self.twoStroke = True
+        else:
+            self.twoStroke = False
         # from matplotlib import pyplot as plt
         # plt.plot(np.arange(len(self.waveform)) / self.FS, self.waveform)
         # plt.show()
@@ -45,7 +51,8 @@ class Engine:
     def rev(self, top):
         # cycle is a vector of NC floats, each in [0 ,720]
         # each float is a firing event, NC = number of cylinders
-        cycle = self.buildCycle(self.my_type)
+        cycle = self.buildCycle(self.my_arch)
+        print(cycle)
 
         # punchedCard is a vector of NC * rpms /60 * milliseconds/1000 firing events.
         # Each is a time coordinate in ms
@@ -56,27 +63,13 @@ class Engine:
         # plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
         # plt.show()
         sound = self.render(punchedCard, self.FS, self.waveform)
-        # plt.plot(sound)
+        # print("sound is {}".format(len(sound)))
+        # plt.plot(np.arange(0, len(sound))/self.FS , sound)
         # plt.show()
-        return sound
-
-    def roar(self, rpms, milliseconds):
-        # cycle is a vector of NC floats, each in [0 ,720]
-        # each float is a firing event, NC = number of cylinders
-        cycle = self.buildCycle(self.my_type)
-
-        # punchedCard is a vector of NC * rpms /60 * milliseconds/1000 firing events.
-        # Each is a time coordinate in ms
-        punchedCard = self.steady(cycle, rpms, milliseconds)
-
-        # sound is a vector containing sound samples (in [-1,1])
-        sound = self.render(punchedCard, self.FS, self.waveform)
-
         return sound
 
     def getWaveForm(self, firing_waveform, fs):
         return {
-
             self.WAVEFORM_4STROKE:
                 0.73 * self.getGaussianPulse(80, fs, 0.008, 600, 2) +
                 0.18 * self.getGaussianPulse(250, fs, 0.03, 200, 5) +
@@ -88,7 +81,7 @@ class Engine:
 
         }.get(firing_waveform, "{} is not a known waveform".format(firing_waveform))
 
-    # cycle is a vector of NC floats, each in [0 ,360]
+    # cycle is a vector of NC floats, each in [0, 720]
     # each float is a firing event, NC = number of cylinders
     def buildCycle(self, my_type):
         return {
@@ -117,20 +110,22 @@ class Engine:
     def steady(self, cycle, rpms, milliseconds):
         punchedCard = np.array(())
         punchedCard = np.append(punchedCard, 0)
-        ran = 1;
         nCycles = 0
         lastOne = 0
-        print("cycle {}".format(cycle))
+
+        # print("cycle {}".format(cycle))
         while punchedCard[-1] < milliseconds / 1000.:
             convFactor = 120. / (720. * rpms)
-            ran = 0.9 * ran + 0.1 * np.random.uniform(0.9, 1.1, 1)
             punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
             lastOne = lastOne + 60. / rpms;
             nCycles += 1
 
         return punchedCard
 
-    def spin(self, cycle, top, REV_DURATION):
+    def spin(self, cycle, limiter, REV_DURATION):
+        # creates the rpm profile.
+        # Engine rpms are controlled similarly to reality, open throttle increases rpms exponentially, until limiter.
+        # Closed throttle decreases them also exponentially, until idle.
 
         punchedCard = np.array(())
         punchedCard = np.append(punchedCard, 0)
@@ -138,22 +133,33 @@ class Engine:
         nCycles = 0
         lastOne = 0
         ran = 1
+        rpmhistory = np.array(())
         while punchedCard[-1] < REV_DURATION / 1000.:
             convFactor = 120. / (720. * rpms)
             ran = 0.9 * ran + 0.1 * np.random.uniform(0.9, 1.1, 1)
             punchedCard = np.append(punchedCard, cycle * convFactor + lastOne)
             lastOne += 120. / rpms
             nCycles += 1
+
+            # if between 1/3 and 2/3 of the simulation, open throttle
             if 2. / 3. * REV_DURATION / 1000. > punchedCard[-1] > 1. / 3. * REV_DURATION / 1000.:
-                rpms = min(1.09 * rpms, top) * ran
+                rpms = min(1.077 * rpms, limiter) * ran
+
+            # ...otherwise, close the throttle!
             else:
-                if self.my_type == self.TYPE_2STROKE_SINGLE or self.my_type == self.TYPE_RS_250:
+                # two strokes have less mechanical resistance,
+                # effective flywheel mass is enough to counteract internal friction longer
+                # -> rpms drop slower when closing throttle.
+                if self.twoStroke:
                     rpms = max(0.96 * rpms, self.REVS_IDLE) * ran
                 else:
                     rpms = max(0.87 * rpms, self.REVS_IDLE) * ran
 
-        # from matplotlib import pyplot as plt
+            rpmhistory = np.append(rpmhistory, rpms)
+
+        from matplotlib import pyplot as plt
         # plt.plot(punchedCard, np.ones(punchedCard.shape), 'rd')
+        # plt.plot(rpmhistory)
         # plt.show()
 
         return punchedCard
@@ -182,7 +188,7 @@ class Engine:
             ran = 0.5 * ran + 0.5 * np.random.uniform(0.8, 1.2, 1)
             # ran =1
             shape = sound[initialSample:initialSample + len(waveform)].shape
-            if self.my_type == self.TYPE_FLAT_4:
+            if self.my_arch == self.TYPE_FLAT_4:
                 sound[initialSample:initialSample + len(waveform)] += np.reshape(waveform * factor * ran, shape)
             else:
                 sound[initialSample:initialSample + len(waveform)] += np.reshape(waveform * ran, shape)
@@ -205,20 +211,20 @@ class Engine:
         sound = src * self.gaussian(t, 0.05 / fs, 1.0 / fs * gaussian_var) + ran * self.gaussian(t, 0.05 / fs,
                                                                                                  1.0 / fs * gaussian_var * noise_var)
 
-        print(sound.shape)
+        # print(sound.shape)
         echos = np.zeros([len(sound) * 2])
-        print(echos.shape)
+        # print(echos.shape)
         echosTimes = np.array(
             [0, duration / 5.5637, 3.2 * duration / 5.5847, 2.5 * duration / 5.412, 5 * duration / 5.412])
         echosFactors = [1, 0.3, 0.15, 0.1, 0.1]
         echosIndexes = echosTimes * fs
         i = 0
-        print(echosTimes)
-        print(echosIndexes)
+        # print(echosTimes)
+        # print(echosIndexes)
         for factor in echosFactors:
             # print(echosIndexes[i])
-            print(i)
-            print(type(echos[int(echosIndexes[i])]))
+            # print(i)
+            # print(type(echos[int(echosIndexes[i])]))
             echos[int(echosIndexes[i])] = factor
             i += 1
 
